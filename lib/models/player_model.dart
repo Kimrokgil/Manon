@@ -1,38 +1,51 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Player {
-  String id;
-  String name;
-  Map<String, double> skills;
+  final String id;
+  final String name;
+  final String position;
+  final int speed;
+  final int shot;
+  final int pass;
+  final int dribble;
+  final int defense;
+  final int stamina;
 
-  Player({required this.id, required this.name, required this.skills});
+  Player({
+    required this.id,
+    required this.name,
+    required this.position,
+    required this.speed,
+    required this.shot,
+    required this.pass,
+    required this.dribble,
+    required this.defense,
+    required this.stamina,
+  });
 
-  factory Player.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
+  factory Player.fromJson(Map<String, dynamic> json) {
     return Player(
-      id: doc.id,
-      name: data['name'] ?? '',
-      skills: Map<String, double>.from(data['skills'] ?? {}),
+      id: json['id'],
+      name: json['name'],
+      position: json['position'],
+      speed: json['speed'],
+      shot: json['shot'],
+      pass: json['pass'],
+      dribble: json['dribble'],
+      defense: json['defense'],
+      stamina: json['stamina'],
     );
   }
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
-      'skills': skills,
+      'position': position,
+      'speed': speed,
+      'shot': shot,
+      'pass': pass,
+      'dribble': dribble,
+      'defense': defense,
+      'stamina': stamina,
     };
-  }
-}
-
-class PlayerModel {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  Future<void> addPlayer(Player player) async {
-    await _db.collection('players').doc(player.id).set(player.toMap());
-  }
-
-  Future<List<Player>> getPlayers() async {
-    QuerySnapshot querySnapshot = await _db.collection('players').get();
-    return querySnapshot.docs.map((doc) => Player.fromFirestore(doc)).toList();
   }
 }

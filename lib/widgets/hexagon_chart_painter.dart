@@ -1,61 +1,94 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'dart:math';
 
 class HexagonChartPainter extends CustomPainter {
   final List<double> values;
+  final double maxValue;
   final List<String> labels;
 
-  HexagonChartPainter(this.values, this.labels);
+  HexagonChartPainter({
+    required this.values,
+    required this.maxValue,
+    required this.labels,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    Paint polygonPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.3)
+    final paint = Paint()
+      ..color = Colors.blue.withOpacity(0.5)
       ..style = PaintingStyle.fill;
 
-    Paint linePaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+    final borderPaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.stroke;
 
-    Paint labelPaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.fill;
+    final textPainter = TextPainter(
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    );
 
-    double centerX = size.width / 2;
-    double centerY = size.height / 2;
-    double radius = min(centerX, centerY) * 0.8; // 반경 조절
-    double angle = (2 * pi) / values.length;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 3;
 
-    Path polygonPath = Path();
-    for (int i = 0; i < values.length; i++) {
-      double x = centerX + radius * values[i] * cos(angle * i);
-      double y = centerY + radius * values[i] * sin(angle * i);
+    // Draw Hexagon
+    final path = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = (math.pi / 3) * i;
+      final x = center.dx + radius * math.cos(angle);
+      final y = center.dy + radius * math.sin(angle);
       if (i == 0) {
-        polygonPath.moveTo(x, y);
+        path.moveTo(x, y);
       } else {
-        polygonPath.lineTo(x, y);
+        path.lineTo(x, y);
       }
     }
-    polygonPath.close();
-    canvas.drawPath(polygonPath, polygonPaint);
+    path.close();
+    canvas.drawPath(path, borderPaint);
 
-    for (int i = 0; i < values.length; i++) {
-      double x = centerX + radius * cos(angle * i);
-      double y = centerY + radius * sin(angle * i);
-      canvas.drawLine(Offset(centerX, centerY), Offset(x, y), linePaint);
+    // Draw connecting lines
+    for (int i = 0; i < 6; i++) {
+      final angle = (math.pi / 3) * i;
+      final x = center.dx + radius * math.cos(angle);
+      final y = center.dy + radius * math.sin(angle);
+      canvas.drawLine(center, Offset(x, y), borderPaint);
+    }
 
-      double labelX = centerX + (radius + 20) * cos(angle * i);
-      double labelY = centerY + (radius + 20) * sin(angle * i);
-      TextSpan span = TextSpan(style: TextStyle(color: Colors.black, fontSize: 12), text: labels[i]);
-      TextPainter tp = TextPainter(text: span, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
-      tp.layout();
-      tp.paint(canvas, Offset(labelX - tp.width / 2, labelY - tp.height / 2));
+    // Draw Values
+    final valuePath = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = (math.pi / 3) * i;
+      final valueRadius = radius * (values[i] / maxValue);
+      final x = center.dx + valueRadius * math.cos(angle);
+      final y = center.dy + valueRadius * math.sin(angle);
+      if (i == 0) {
+        valuePath.moveTo(x, y);
+      } else {
+        valuePath.lineTo(x, y);
+      }
+    }
+    valuePath.close();
+    canvas.drawPath(valuePath, paint);
+
+    // Draw Labels
+    for (int i = 0; i < 6; i++) {
+      final angle = (math.pi / 3) * i;
+      final x = center.dx + (radius + 10) * math.cos(angle);
+      final y = center.dy + (radius + 10) * math.sin(angle);
+      textPainter.text = TextSpan(
+        text: labels[i],
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.black,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+          canvas, Offset(x - textPainter.width / 2, y - textPainter.height / 2));
     }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
+    return true;
   }
 }

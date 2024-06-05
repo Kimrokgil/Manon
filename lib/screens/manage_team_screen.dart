@@ -16,7 +16,9 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
   List<Map<String, dynamic>> _currentFormation = [];
   FirestoreService _firestoreService = FirestoreService();
   Map<String, List<Map<String, dynamic>>> _formations = {};
-  Map<int, Offset> _playerPositions = {};
+  List<Map<String, dynamic>> _players = List.generate(12, (index) => {
+    'name': '회원 ${index + 1}',
+  });
 
   @override
   void initState() {
@@ -29,68 +31,40 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
     _formations = await _firestoreService.getFormations();
     setState(() {
       _currentFormation = _formations[_selectedFormation] ?? [];
-      _initializePlayerPositions();
     });
-  }
-
-  void _initializePlayerPositions() {
-    for (int i = 0; i < _currentFormation.length; i++) {
-      _playerPositions[i] = Offset(_currentFormation[i]['left'].toDouble(), _currentFormation[i]['top'].toDouble());
-    }
   }
 
   void _onFormationChanged(String? formation) {
     setState(() {
       _selectedFormation = formation!;
       _currentFormation = _formations[_selectedFormation] ?? [];
-      _initializePlayerPositions();
     });
   }
 
-  void _updatePlayerPosition(int index, Offset newPosition) {
-    setState(() {
-      _playerPositions[index] = newPosition;
-      _currentFormation[index]['left'] = newPosition.dx;
-      _currentFormation[index]['top'] = newPosition.dy;
-    });
+  Future<void> _saveFormation() async {
+    await _firestoreService.updateFormation(widget.team.id, _selectedFormation, _currentFormation);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('포메이션이 저장되었습니다.')));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('팀 관리')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            // 그라운드 이미지
-            Expanded(
-              flex: 3,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  double groundWidth = constraints.maxWidth;
-                  double groundHeight = groundWidth * 4 / 3; // 세로 비율을 유지
-                  return Container(
-                    width: groundWidth,
-                    height: groundHeight,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage('assets/ground.png'),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    child: Stack(
-                      children: _buildFormation(groundWidth, groundHeight),
-                    ),
-                  );
-                },
-              ),
-            ),
-            SizedBox(width: 20),
-            // 회원 리스트
-            Expanded(
-              flex: 2,
-              child: Column(
+      appBar: AppBar(
+        title: Text('팀 관리'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   DropdownButton<String>(
                     value: _selectedFormation,
@@ -102,57 +76,41 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
                       );
                     }).toList(),
                   ),
-                  Divider(),
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        ListTile(
-                          title: Text('회원 관리'),
-                          onTap: () => _navigateToFeature('member_management'),
-                        ),
-                        ListTile(
-                          title: Text('출석 관리'),
-                          onTap: () => _navigateToFeature('attendance_management'),
-                        ),
-                        ListTile(
-                          title: Text('역할 관리'),
-                          onTap: () => _navigateToFeature('role_management'),
-                        ),
-                        ListTile(
-                          title: Text('팀 일정 관리'),
-                          onTap: () => _navigateToFeature('schedule_management'),
-                        ),
-                        ListTile(
-                          title: Text('팀 통계'),
-                          onTap: () => _navigateToFeature('team_statistics'),
-                        ),
-                        ListTile(
-                          title: Text('경기 일정'),
-                          onTap: () => _navigateToFeature('match_schedule'),
-                        ),
-                        ListTile(
-                          title: Text('경기 결과'),
-                          onTap: () => _navigateToFeature('match_results'),
-                        ),
-                        ListTile(
-                          title: Text('포메이션 관리'),
-                          onTap: () => _navigateToFeature('lineup_management'),
-                        ),
-                        ListTile(
-                          title: Text('공지사항'),
-                          onTap: () => _navigateToFeature('announcements'),
-                        ),
-                        ListTile(
-                          title: Text('사진 및 비디오 공유'),
-                          onTap: () => _navigateToFeature('media_sharing'),
-                        ),
-                      ],
-                    ),
+                  SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: _saveFormation,
+                    child: Text('포메이션 저장'),
                   ),
                 ],
               ),
-            ),
-          ],
+              SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  double groundWidth = constraints.maxWidth;
+                  double groundHeight = groundWidth * 1.3; // 세로 비율을 65%로 유지
+                  return Container(
+                    width: groundWidth,
+                    height: groundHeight,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('assets/ground.png'),
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    child: Stack(
+                      children: _buildFormation(groundWidth, groundHeight),
+                    ),
+                  );
+                },
+              ),
+              SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _buildPlayerIcons(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -163,18 +121,16 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
       int index = entry.key;
       Map<String, dynamic> player = entry.value;
       return Positioned(
-        left: _playerPositions[index]!.dx * groundWidth / 360,
-        top: _playerPositions[index]!.dy * groundHeight / 576,
+        left: player['left'] * groundWidth / 360,
+        top: (576 - player['top']) * groundHeight / 576, // 상하 반전
         child: Draggable<int>(
           data: index,
           feedback: _playerIcon(index),
           child: _playerIcon(index),
           onDraggableCanceled: (velocity, offset) {
             setState(() {
-              _playerPositions[index] = Offset(
-                offset.dx * 360 / groundWidth,
-                offset.dy * 576 / groundHeight,
-              );
+              _currentFormation[index]['left'] = offset.dx * 360 / groundWidth;
+              _currentFormation[index]['top'] = 576 - (offset.dy * 576 / groundHeight);
             });
           },
         ),
@@ -199,7 +155,19 @@ class _ManageTeamScreenState extends State<ManageTeamScreen> {
     );
   }
 
-  void _navigateToFeature(String feature) {
-    // Feature navigation logic here
+  List<Widget> _buildPlayerIcons() {
+    return _players.map((player) {
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.grey,
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Icon(Icons.person, color: Colors.white),
+        ),
+      );
+    }).toList();
   }
 }
